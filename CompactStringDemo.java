@@ -3,42 +3,55 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * So sánh footprint của chuỗi ASCII và Unicode trên JDK 8 vs 17
- * bằng cách dùng Java Object Layout (JOL).
+ * So sánh footprint String ASCII vs Unicode trên JDK 8 & 17
+ * ---------------------------------------------------------
+ * 1) Tải JOL CLI (đã kèm jol-core):
+ *    curl -L -o jol-cli.jar \
+ *      https://repo1.maven.org/maven2/org/openjdk/jol/jol-cli/0.17/jol-cli-0.17-full.jar
  *
- * Cách biên dịch (trong GitHub Actions hoặc local):
- *   # tải jol-cli-0.17-full.jar về thư mục hiện tại
- *   javac -classpath jol-cli.jar CompactStringDemo.java
+ * 2) Biên dịch:
+ *    javac -classpath jol-cli.jar:. CompactStringDemo.java
  *
- * Cách chạy (gợi ý):
- *   java -Xms1g -Xmx1g -XX:+UseSerialGC -XX:-UseStringDeduplication \
- *        -classpath .:jol-cli.jar CompactStringDemo
+ * 3) Chạy (Linux/macOS; thêm -Djdk.attach.allowAttachSelf=true để JOL tự attach):
+ *    java -Xms2g -Xmx2g -XX:+UseSerialGC -XX:-UseStringDeduplication \
+ *         -Djdk.attach.allowAttachSelf=true \
+ *         -classpath jol-cli.jar:. CompactStringDemo
  *
- * (Trên Windows, thay dấu ':' bằng ';' trong classpath.)
+ *    (Windows: thay ':' bằng ';' trong classpath.)
  */
 public class CompactStringDemo {
 
-    private static final int N = 2_000_000;        // số chuỗi mỗi danh sách
+    private static final int N = 2_000_000;
+    private static List<String> keep;           // ngăn GC thu hồi danh sách
 
     public static void main(String[] args) {
+        warmUp();                               // chạy “nóng” JVM & JIT
 
-        // 1) Danh sách chuỗi ASCII
-        List<String> asciiList = new ArrayList<>(N);
+        measure("ASCII",   i -> "HELLO" + i);   // 5 ký tự ASCII + số
+        measure("UNICODE", i -> "\u4f60\u597d\u4e16\u754c" + i); // 你好世界 + số
+    }
+
+    /* ---- HÀM HỖ TRỢ ---- */
+
+    // Interface đơn giản để sinh chuỗi tuỳ nội dung
+    @FunctionalInterface
+    private interface Generator { String make(int i); }
+
+    private static void measure(String label, Generator gen) {
+        List<String> list = new ArrayList<>(N);
         for (int i = 0; i < N; i++) {
-            asciiList.add(new String("HELLO"));    // ép JVM tạo String mới
+            list.add(gen.make(i));              // tạo String mới, có mảng riêng
         }
+        keep = list;                            // giữ lại để không bị GC
+        System.out.println("=== " + label + " list footprint ===");
+        System.out.println(GraphLayout.parseInstance(list).toFootprint());
+        System.out.println();
+    }
 
-        // 2) Danh sách chuỗi Unicode > 255
-        List<String> uniList = new ArrayList<>(N);
-        for (int i = 0; i < N; i++) {
-            uniList.add(new String("\u4f60\u597d\u4e16\u754c")); // 你好世界
-        }
-
-        // 3) In footprint
-        System.out.println("=== ASCII list footprint ===");
-        System.out.println(GraphLayout.parseInstance(asciiList).toFootprint());
-
-        System.out.println("=== Unicode list footprint ===");
-        System.out.println(GraphLayout.parseInstance(uniList).toFootprint());
+    /** Chạy đo một vòng nhỏ để JIT & classloader ổn định. */
+    private static void warmUp() {
+        measure("WARMUP", i -> "W" + i);
+        keep = null;
+        System.gc();
     }
 }

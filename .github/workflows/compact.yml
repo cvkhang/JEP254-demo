@@ -16,31 +16,16 @@ jobs:
         distribution: temurin
         java-version: ${{ matrix.java }}
 
-    # 1) Tải JOL (full jar)
-    - name: Download JOL
-      run: |
-        curl -L -o jol-cli.jar \
-          https://repo1.maven.org/maven2/org/openjdk/jol/jol-cli/0.17/jol-cli-0.17-full.jar
-
-    # 2) Biên dịch CompactStringDemo
+    - name: Download JOL CLI
+      run: curl -L -o jol-cli.jar \
+             https://repo1.maven.org/maven2/org/openjdk/jol/jol-cli/0.17/jol-cli-0.17-full.jar
+      
     - name: Compile demo
+      run: javac -classpath jol-cli.jar:. CompactStringDemo.java
+      
+    - name: Run demo & save log
       run: |
-        javac -classpath jol-cli.jar:. CompactStringDemo.java
-
-    # 3) Chạy & ghi log
-    - name: Run demo
-      run: |
-        JVM_OPTS="-Xms1g -Xmx1g -XX:+UseSerialGC -XX:-UseStringDeduplication"
-        java $JVM_OPTS -classpath jol-cli.jar:. CompactStringDemo | tee result-${{ matrix.java }}.txt
-
-    # 4) Đưa kết quả vào job summary
-    - name: Add summary
-      run: |
-        echo "### Footprint on JDK ${{ matrix.java }}" >> $GITHUB_STEP_SUMMARY
-        head -n 30 result-${{ matrix.java }}.txt        >> $GITHUB_STEP_SUMMARY
-
-    # 5) Lưu log đầy đủ (tuỳ chọn)
-    - uses: actions/upload-artifact@v4
-      with:
-        name: jol-${{ matrix.java }}
-        path: result-${{ matrix.java }}.txt
+          JVM_OPTS="-Xms2g -Xmx2g -XX:+UseSerialGC -XX:-UseStringDeduplication \
+                    -Djdk.attach.allowAttachSelf=true"
+          java $JVM_OPTS -classpath jol-cli.jar:. CompactStringDemo \
+               | tee result-${{ matrix.java }}.txt
