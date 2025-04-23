@@ -22,23 +22,31 @@ public class CompactStringOnlineDemo {
      * rồi in ra tổng KB và byte/chuỗi.
      */
     private static void test(String label, int n, String sample) {
-        System.gc(); Thread.sleep(200);          // cho GC thời gian thật sự chạy
+        try {
+            System.gc();
+            Thread.sleep(200);                 // đợi GC chạy xong
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();// khôi phục trạng thái ngắt
+        }
         long before = used();
 
         List<String> list = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
-            // ép JVM tạo chuỗi mới, không dùng intern pool
-            list.add(new String(sample));
-            // hoặc: list.add(sample + i);  // chắc chắn khác nội dung
+            list.add(new String(sample));      // ép JVM tạo String mới
         }
 
-        System.gc(); Thread.sleep(200);
-        long after  = used();
-        long delta  = after - before;
+        try {
+            System.gc();
+            Thread.sleep(200);                 // đợi GC lần 2
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
+        long delta = used() - before;
 
         System.out.printf("%s: %+,.0f KB  (~%,d bytes/string)%n",
                         label, delta / 1024.0, delta / n);
     }
+
 
 
     /** Trả về lượng RAM JVM đang dùng (total - free). */
