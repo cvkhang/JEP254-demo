@@ -21,5 +21,4 @@ jobs:
 
       - run: javac CompactStringOnlineDemo.java
 
-      - run: |
-          java -Xms1g -Xmx1g CompactStringOnlineDemo
+      - run: java -Xms1g -Xmx1g -XX:-ShrinkHeapInSteps CompactStringOnlineDemo

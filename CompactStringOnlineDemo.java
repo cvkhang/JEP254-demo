@@ -1,37 +1,53 @@
 import java.util.*;
+import java.lang.management.*;
 
 /**
- * Demo đo mức sử dụng bộ nhớ của String giữa JDK 8 (char[])
- * và JDK 9+ (Compact Strings – byte[] + coder).
+ * CompactStringOnlineDemo
+ * -----------------------
+ * Mục đích: chứng minh hiệu quả "Compact Strings" (JEP 254) bằng cách so sánh
+ * lượng bộ nhớ mà chuỗi ASCII và Unicode chiếm dụng trên JDK 8 (String lưu trữ
+ * bằng char[]) so với JDK 9+ (String lưu trữ bằng byte[] + coder).
+ *
+ * Chạy trên GitHub Actions (hoặc bất kỳ môi trường CLI) với tham số JVM cố định:
+ *     java -Xms1g -Xmx1g -XX:-ShrinkHeapInSteps CompactStringOnlineDemo
+ * Sau đó đối chiếu kết quả giữa các phiên bản JDK.
  */
 public class CompactStringOnlineDemo {
 
-    // Số lượng chuỗi để tạo trong mỗi thử nghiệm
-    private static final int ASCII_N   = 500_000;   // chuỗi toàn ASCII
-    private static final int UNICODE_N = 100_000;   // chuỗi chứa ký tự Unicode > 255
+
+    /** Số bản sao chuỗi ASCII sẽ tạo (HELLO)  */
+    private static final int ASCII_N   = 2_000_000;
+
+    /** Số bản sao chuỗi Unicode sẽ tạo (“你好世界”)  */
+    private static final int UNICODE_N =   400_000;
+
+    /** MXBean dùng để đọc chính xác heap đang sử dụng (tránh nhiễu shrink/expand) */
+    private static final MemoryMXBean MX = ManagementFactory.getMemoryMXBean();
 
     public static void main(String[] args) {
-        //   1: chuỗi ASCII "HELLO"
-        test("ASCII",   ASCII_N,  "HELLO");                 // 5 ký tự ASCII
-        //   2: chuỗi Unicode "你好世界" viết bằng mã \\uXXXX
-        test("UNICODE", UNICODE_N, "\u4f60\u597d\u4e16\u754c"); // 4 ký tự > 255
+        test("ASCII",   ASCII_N,  "HELLO");                 // 5 ký tự, tất cả < 128
+        test("UNICODE", UNICODE_N, "\u4f60\u597d\u4e16\u754c"); // "你好世界" (>255)
     }
 
     /**
-     * Sinh n bản sao của chuỗi mẫu, đo lượng bộ nhớ tăng thêm,
-     * rồi in ra tổng KB và byte/chuỗi.
+     * Tạo n bản sao chuỗi mẫu, đo dung lượng heap tăng thêm và in kết quả.
+     *
+     * @param label  Nhãn hiển thị (ASCII / UNICODE)
+     * @param n      Số chuỗi sẽ sinh
+     * @param sample Giá trị chuỗi cần nhân bản
      */
     private static void test(String label, int n, String sample) {
-        System.gc();                          // dọn rác để số đo ổn định hơn
-        long before = used();                 // bộ nhớ trước khi cấp phát
+        gcQuiet();                     // dọn rác, ổn định heap
+        long before = used();          // heap used trước cấp phát
 
+        /* Giữ reference trong List để ngăn GC thu hồi trong khi đo */
         List<String> list = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
             list.add(sample);
         }
 
-        System.gc();                          // dọn rác lần nữa
-        long total = used() - before;         // phần bộ nhớ tăng thêm
+        gcQuiet();                     // dọn rác lại lần nữa
+        long total = used() - before;  // phần heap tăng thêm
 
         System.out.printf(
             "%s: %,d KB  (~%,d bytes/string)%n",
@@ -39,9 +55,20 @@ public class CompactStringOnlineDemo {
         );
     }
 
-    /** Trả về lượng RAM JVM đang dùng (total - free). */
+
+    /** Đọc dung lượng heap JVM thực sự đang sử dụng (bytes) */
     private static long used() {
-        Runtime rt = Runtime.getRuntime();
-        return rt.totalMemory() - rt.freeMemory();
+        return MX.getHeapMemoryUsage().getUsed();
+    }
+
+    /**
+     * Gọi GC + sleep ngắn để tăng khả năng thu gom đối tượng đã bỏ,
+     * tránh sai lệch do GC trì hoãn.
+     */
+    private static void gcQuiet() {
+        System.gc();
+        try {
+            Thread.sleep(200); // 200 ms là đủ cho GC hoàn tất trên CI
+        } catch (InterruptedException ignored) {}
     }
 }
