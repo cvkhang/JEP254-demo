@@ -24,7 +24,10 @@ jobs:
     # 2) (TUỲ) Biên dịch chương trình tạo đối tượng lớn
     - name: Compile demo
       run: |
-        javac CompactStringDemo.java || true
+        javac -classpath jol-cli.jar:. CompactStringDemo.java
+        java  -classpath jol-cli.jar:. CompactStringDemo
+
+
 
     # 3) Tải JOL CLI độc lập
     - name: Download JOL CLI
