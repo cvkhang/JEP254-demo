@@ -1,32 +1,44 @@
-import java.util.*;
+import org.openjdk.jol.info.GraphLayout;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * So sánh footprint của chuỗi ASCII và Unicode trên JDK 8 vs 17
+ * bằng cách dùng Java Object Layout (JOL).
+ *
+ * Cách biên dịch (trong GitHub Actions hoặc local):
+ *   # tải jol-cli-0.17-full.jar về thư mục hiện tại
+ *   javac -classpath jol-cli.jar CompactStringDemo.java
+ *
+ * Cách chạy (gợi ý):
+ *   java -Xms1g -Xmx1g -XX:+UseSerialGC -XX:-UseStringDeduplication \
+ *        -classpath .:jol-cli.jar CompactStringDemo
+ *
+ * (Trên Windows, thay dấu ':' bằng ';' trong classpath.)
+ */
 public class CompactStringDemo {
-    private static final int  N = 2_000_000;          // đủ lớn
-    private static List<String> keep;                 // giữ tham chiếu
+
+    private static final int N = 2_000_000;        // số chuỗi mỗi danh sách
+
     public static void main(String[] args) {
-        warmUp();                                     // 1 lần mồi
-        runTest("ASCII",   "HELLO");
-        runTest("UNICODE", "\u4f60\u597d\u4e16\u754c"); // 你好世界
-    }
-    private static void warmUp() { runTest("WARM", "W"); }
-    private static void runTest(String label, String sample) {
-        gcPause();
-        long before = used();
-        List<String> list = new ArrayList<>(N);
-        for (int i = 0; i < N; i++) list.add(new String(sample));
-        keep = list;              // giữ lại
-        gcPause();
-        long delta = used() - before;
-        System.out.printf("%s: %,.1f KB  (~%,d bytes/string)%n",
-                          label, delta / 1024.0, delta / N);
-    }
-    private static void gcPause() {
-        System.gc();
-        try { Thread.sleep(500); } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+
+        // 1) Danh sách chuỗi ASCII
+        List<String> asciiList = new ArrayList<>(N);
+        for (int i = 0; i < N; i++) {
+            asciiList.add(new String("HELLO"));    // ép JVM tạo String mới
         }
-    }
-    private static long used() {
-        Runtime rt = Runtime.getRuntime();
-        return rt.totalMemory() - rt.freeMemory();
+
+        // 2) Danh sách chuỗi Unicode > 255
+        List<String> uniList = new ArrayList<>(N);
+        for (int i = 0; i < N; i++) {
+            uniList.add(new String("\u4f60\u597d\u4e16\u754c")); // 你好世界
+        }
+
+        // 3) In footprint
+        System.out.println("=== ASCII list footprint ===");
+        System.out.println(GraphLayout.parseInstance(asciiList).toFootprint());
+
+        System.out.println("=== Unicode list footprint ===");
+        System.out.println(GraphLayout.parseInstance(uniList).toFootprint());
     }
 }
