@@ -19,7 +19,7 @@ jobs:
           distribution: temurin 
           java-version: ${{ matrix.java }}
 
-      - run: |
-            javac CompactStringOnlineDemo.java
-            java -Xms1g -Xmx1g -XX:+UseSerialGC -XX:MinHeapFreeRatio=0 -XX:MaxHeapFreeRatio=5 CompactStringOnlineDemo
+      - run: javac CompactStringOnlineDemo.java
 
+      - run: |
+          java -Xms1g -Xmx1g CompactStringOnlineDemo
