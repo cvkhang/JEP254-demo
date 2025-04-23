@@ -1,57 +1,47 @@
 import org.openjdk.jol.info.GraphLayout;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Arrays;
 
-/**
- * So sánh footprint String ASCII vs Unicode trên JDK 8 & 17
- * ---------------------------------------------------------
- * 1) Tải JOL CLI (đã kèm jol-core):
- *    curl -L -o jol-cli.jar \
- *      https://repo1.maven.org/maven2/org/openjdk/jol/jol-cli/0.17/jol-cli-0.17-full.jar
- *
- * 2) Biên dịch:
- *    javac -classpath jol-cli.jar:. CompactStringDemo.java
- *
- * 3) Chạy (Linux/macOS; thêm -Djdk.attach.allowAttachSelf=true để JOL tự attach):
- *    java -Xms2g -Xmx2g -XX:+UseSerialGC -XX:-UseStringDeduplication \
- *         -Djdk.attach.allowAttachSelf=true \
- *         -classpath jol-cli.jar:. CompactStringDemo
- *
- *    (Windows: thay ':' bằng ';' trong classpath.)
- */
 public class CompactStringDemo {
 
-    private static final int N = 2_000_000;
-    private static List<String> keep;           // ngăn GC thu hồi danh sách
+    private static final int N      = 2_000_000; // số chuỗi
+    private static final int LENGTH = 100;       // ký tự ASCII/Unicode mỗi chuỗi
+    private static List<String> keep;            // ngăn GC
 
     public static void main(String[] args) {
-        warmUp();                               // chạy “nóng” JVM & JIT
+        warmUp();                                         // JIT ổn định
 
-        measure("ASCII",   i -> "HELLO" + i);   // 5 ký tự ASCII + số
-        measure("UNICODE", i -> "\u4f60\u597d\u4e16\u754c" + i); // 你好世界 + số
+        String asciiBase   = buildAscii(LENGTH);          // 100×'A'
+        String unicodeBase = buildUnicode(LENGTH);        // 100×'你'
+
+        measure("ASCII-100",   i -> asciiBase   + i);     // khác nội dung
+        measure("UNICODE-100", i -> unicodeBase + i);
     }
 
-    /* ---- HÀM HỖ TRỢ ---- */
+    /* ----- TẠO CHUỖI MẪU ----- */
+    private static String buildAscii(int len) {
+        char[] c = new char[len];
+        Arrays.fill(c, 'A');
+        return new String(c);
+    }
+    private static String buildUnicode(int len) {
+        char[] c = new char[len];
+        Arrays.fill(c, '\u4f60'); // 你
+        return new String(c);
+    }
 
-    // Interface đơn giản để sinh chuỗi tuỳ nội dung
-    @FunctionalInterface
-    private interface Generator { String make(int i); }
+    /* ----- ĐO MEMORY ----- */
+    @FunctionalInterface interface Gen { String make(int i); }
 
-    private static void measure(String label, Generator gen) {
+    private static void measure(String label, Gen g) {
         List<String> list = new ArrayList<>(N);
-        for (int i = 0; i < N; i++) {
-            list.add(gen.make(i));              // tạo String mới, có mảng riêng
-        }
-        keep = list;                            // giữ lại để không bị GC
-        System.out.println("=== " + label + " list footprint ===");
+        for (int i = 0; i < N; i++) list.add(g.make(i));
+        keep = list;
+        System.out.println("=== " + label + " footprint ===");
         System.out.println(GraphLayout.parseInstance(list).toFootprint());
         System.out.println();
     }
 
-    /** Chạy đo một vòng nhỏ để JIT & classloader ổn định. */
-    private static void warmUp() {
-        measure("WARMUP", i -> "W" + i);
-        keep = null;
-        System.gc();
-    }
+    private static void warmUp() { measure("WARMUP", i -> "WARM" + i); keep = null; System.gc(); }
 }

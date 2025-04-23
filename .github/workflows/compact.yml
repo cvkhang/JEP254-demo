@@ -1,57 +1,51 @@
-name: Measure-Object-Layout   # tiêu đề hiển thị trong tab Actions
-on: [workflow_dispatch]       # bấm “Run workflow” thủ công; đổi thành push/pull_request nếu muốn
+name: Measure-Object-Layout
+
+on:
+  workflow_dispatch:        # bấm nút “Run workflow” thủ công
 
 jobs:
   measure:
     runs-on: ubuntu-latest
 
-    # chạy lặp trên nhiều phiên bản JDK
     strategy:
       matrix:
-        java: [ '8', '17' ]   # thêm '21' hoặc 'latest' nếu cần
+        java: [ '8', '17' ] # thêm '21' nếu muốn
 
     steps:
-    # 1) Lấy mã nguồn
+    # 1) Lấy mã nguồn của repo
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 2) Cài Temurin JDK theo matrix.java
+    # 2) Cài JDK theo phiên bản trong matrix
     - name: Set up JDK ${{ matrix.java }}
       uses: actions/setup-java@v4
       with:
         distribution: temurin
         java-version: ${{ matrix.java }}
 
-    # 3) Tải JOL CLI (full JAR đã kèm jol-core)
+    # 3) Tải JOL CLI (full-jar đã kèm jol-core)
     - name: Download JOL CLI
       run: |
         curl -L -o jol-cli.jar \
           https://repo1.maven.org/maven2/org/openjdk/jol/jol-cli/0.17/jol-cli-0.17-full.jar
 
-    # 4) Biên dịch CompactStringDemo.java (ở thư mục gốc repo)
+    # 4) Biên dịch demo dài 100 ký tự
     - name: Compile CompactStringDemo
       run: |
         javac -classpath jol-cli.jar:. CompactStringDemo.java
 
-    # 5) Chạy demo, ghi log
-    - name: Run JOL demo
+    # 5) Chạy demo, xuất footprint
+    - name: Run demo & capture footprint
       run: |
-        JVM_OPTS="-Xms2g -Xmx2g -XX:+UseSerialGC -XX:-UseStringDeduplication \
+        JVM_OPTS="-Xms3g -Xmx3g -XX:+UseSerialGC -XX:-UseStringDeduplication \
                   -Djdk.attach.allowAttachSelf=true"
-        java $JVM_OPTS -classpath jol-cli.jar:. CompactStringDemo \
+        java $JVM_OPTS -classpath jol-cli.jar:. CompactStringDemoLong \
           | tee result-${{ matrix.java }}.txt
 
-    # 6) Thêm trích đoạn log vào Job Summary (dễ xem nhanh)
-    - name: Append to summary
+    # 6) Đưa 40 dòng đầu log vào Job Summary để xem nhanh
+    - name: Append summary
       run: |
-        echo "## JOL footprint on JDK ${{ matrix.java }}" >> $GITHUB_STEP_SUMMARY
-        echo '```text'                                    >> $GITHUB_STEP_SUMMARY
-        head -n 40 result-${{ matrix.java }}.txt          >> $GITHUB_STEP_SUMMARY
-        echo '```'                                        >> $GITHUB_STEP_SUMMARY
-
-    # 7) Lưu toàn bộ log làm artifact
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: jol-${{ matrix.java }}
-        path: result-${{ matrix.java }}.txt
+        echo "## Footprint (100-char strings) – JDK ${{ matrix.java }}" >> $GITHUB_STEP_SUMMARY
+        echo '```text' >> $GITHUB_STEP_SUMMARY
+        head -n 40 result-${{ matrix.java }}.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
