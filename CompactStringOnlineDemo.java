@@ -22,22 +22,24 @@ public class CompactStringOnlineDemo {
      * rồi in ra tổng KB và byte/chuỗi.
      */
     private static void test(String label, int n, String sample) {
-        System.gc();                          // dọn rác để số đo ổn định hơn
-        long before = used();                 // bộ nhớ trước khi cấp phát
+        System.gc(); Thread.sleep(200);          // cho GC thời gian thật sự chạy
+        long before = used();
 
         List<String> list = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
-            list.add(sample);
+            // ép JVM tạo chuỗi mới, không dùng intern pool
+            list.add(new String(sample));
+            // hoặc: list.add(sample + i);  // chắc chắn khác nội dung
         }
 
-        System.gc();                          // dọn rác lần nữa
-        long total = used() - before;         // phần bộ nhớ tăng thêm
+        System.gc(); Thread.sleep(200);
+        long after  = used();
+        long delta  = after - before;
 
-        System.out.printf(
-            "%s: %,d KB  (~%,d bytes/string)%n",
-            label, total / 1024, total / n
-        );
+        System.out.printf("%s: %+,.0f KB  (~%,d bytes/string)%n",
+                        label, delta / 1024.0, delta / n);
     }
+
 
     /** Trả về lượng RAM JVM đang dùng (total - free). */
     private static long used() {
