@@ -24,7 +24,7 @@ jobs:
     # 2) (TUỲ) Biên dịch chương trình tạo đối tượng lớn
     - name: Compile demo
       run: |
-        javac CompactStringOnlineDemo.java || true
+        javac CompactStringDemo.java || true
 
     # 3) Tải JOL CLI độc lập
     - name: Download JOL CLI
