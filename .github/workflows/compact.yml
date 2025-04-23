@@ -22,4 +22,4 @@ jobs:
       - run: javac CompactStringOnlineDemo.java
 
       - run: |
-          java -Xms2g -Xmx2g -XX:-UseStringDeduplication -XX:+UseSerialGC -jar demo.jar
+          java -Xms2g -Xmx2g -XX:-UseStringDeduplication -XX:+UseSerialGC -jar CompactStringOnlineDemo.jar
