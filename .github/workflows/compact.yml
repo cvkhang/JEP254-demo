@@ -22,9 +22,9 @@ jobs:
         java-version: ${{ matrix.java }}
 
     # 2) (TUỲ) Biên dịch chương trình tạo đối tượng lớn
-    - name: Compile demo (optional)
+    - name: Compile demo
       run: |
-        javac CompactStringDemo.java || true   # bỏ qua nếu không có
+        javac CompactStringOnlineDemo.java || true
 
     # 3) Tải JOL CLI độc lập
     - name: Download JOL CLI
