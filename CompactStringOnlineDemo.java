@@ -13,7 +13,7 @@ public class CompactStringOnlineDemo {
     public static void main(String[] args) {
         //   1: chuỗi ASCII "HELLO"
         test("ASCII",   ASCII_N,  "HELLO");                 // 5 ký tự ASCII
-        //   2: chuỗi Unicode "你好世界" viết bằng mã \uXXXX
+        //   2: chuỗi Unicode "你好世界" viết bằng mã \\uXXXX
         test("UNICODE", UNICODE_N, "\u4f60\u597d\u4e16\u754c"); // 4 ký tự > 255
     }
 
