@@ -39,7 +39,7 @@ jobs:
       run: |
         JVM_OPTS="-Xms3g -Xmx3g -XX:+UseSerialGC -XX:-UseStringDeduplication \
                   -Djdk.attach.allowAttachSelf=true"
-        java $JVM_OPTS -classpath jol-cli.jar:. CompactStringDemoLong \
+        java $JVM_OPTS -classpath jol-cli.jar:. CompactStringDemo \
           | tee result-${{ matrix.java }}.txt
 
     # 6) Đưa 40 dòng đầu log vào Job Summary để xem nhanh
