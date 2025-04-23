@@ -1,4 +1,4 @@
-name: Measure-Object-Layout
+name: CompactString-Demo
 
 on:
   workflow_dispatch:        # bấm nút “Run workflow” thủ công
