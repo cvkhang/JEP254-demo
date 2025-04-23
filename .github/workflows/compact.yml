@@ -1,0 +1,25 @@
+name: CompactString-Memory
+on: [workflow_dispatch] 
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+
+    # chạy lặp cho mỗi phiên bản JDK
+    strategy:
+      matrix:
+        java: [ '8', '17']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin 
+          java-version: ${{ matrix.java }}
+
+      - run: javac CompactStringOnlineDemo.java
+
+      - run: |
+          java -Xms1g -Xmx1g CompactStringOnlineDemo
