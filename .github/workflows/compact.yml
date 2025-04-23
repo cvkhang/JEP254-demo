@@ -1,67 +1,46 @@
 name: Measure-Object-Layout
-on: [workflow_dispatch]   # chạy tay; đổi thành push/pull_request nếu muốn tự động
+on: [workflow_dispatch]
 
 jobs:
   measure:
     runs-on: ubuntu-latest
-
-    # chạy trên nhiều bản JDK
     strategy:
-      matrix:
-        java: ['8', '17']   # thêm 21 sắp tới nếu cần
+      matrix: { java: ['8', '17'] }
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    # 1) Cài đúng JDK
-    - name: Setup Temurin JDK
+    - name: Setup JDK
       uses: actions/setup-java@v4
       with:
         distribution: temurin
         java-version: ${{ matrix.java }}
 
-    # 2) (TUỲ) Biên dịch chương trình tạo đối tượng lớn
-    - name: Compile demo
-      run: |
-        javac -classpath jol-cli.jar:. CompactStringDemo.java
-        java  -classpath jol-cli.jar:. CompactStringDemo
-
-
-
-    # 3) Tải JOL CLI độc lập
-    - name: Download JOL CLI
+    # 1) Tải JOL (full jar)
+    - name: Download JOL
       run: |
         curl -L -o jol-cli.jar \
           https://repo1.maven.org/maven2/org/openjdk/jol/jol-cli/0.17/jol-cli-0.17-full.jar
 
-    # 4) Chạy JOL – đo layout của String
-    - name: Run JOL (internals, graph)
+    # 2) Biên dịch CompactStringDemo
+    - name: Compile demo
       run: |
-        set -e
-        # tuỳ chọn JVM: tắt dedup để số đo ổn định
+        javac -classpath jol-cli.jar:. CompactStringDemo.java
+
+    # 3) Chạy & ghi log
+    - name: Run demo
+      run: |
         JVM_OPTS="-Xms1g -Xmx1g -XX:+UseSerialGC -XX:-UseStringDeduplication"
-        LOG=jol-${{ matrix.java }}.txt
-        echo "### Layout for java.lang.String on JDK ${{ matrix.java }}" | tee $LOG
-        java $JVM_OPTS -jar jol-cli.jar internals java.lang.String     | tee -a $LOG
-        echo >> $LOG
-        # footprint của 2 000 000 String ASCII
-        java $JVM_OPTS -classpath .:jol-cli.jar \
-             com.example.GenerateStrings | tee -a $LOG || true
-        # hoặc thay bằng lệnh graph layout:
-        # java $JVM_OPTS -jar jol-cli.jar graph com.example.BigList makerMethod
+        java $JVM_OPTS -classpath jol-cli.jar:. CompactStringDemo | tee result-${{ matrix.java }}.txt
 
-    # 5) Đưa log vào Job Summary
-    - name: Append to summary
+    # 4) Đưa kết quả vào job summary
+    - name: Add summary
       run: |
-        echo '## JOL output (snippet)' >> $GITHUB_STEP_SUMMARY
-        echo '\`\`\`'                  >> $GITHUB_STEP_SUMMARY
-        head -n 40 jol-${{ matrix.java }}.txt >> $GITHUB_STEP_SUMMARY
-        echo '\`\`\`'                  >> $GITHUB_STEP_SUMMARY
+        echo "### Footprint on JDK ${{ matrix.java }}" >> $GITHUB_STEP_SUMMARY
+        head -n 30 result-${{ matrix.java }}.txt        >> $GITHUB_STEP_SUMMARY
 
-    # 6) (TUỲ) Upload toàn bộ log làm artifact
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
+    # 5) Lưu log đầy đủ (tuỳ chọn)
+    - uses: actions/upload-artifact@v4
       with:
         name: jol-${{ matrix.java }}
-        path: jol-${{ matrix.java }}.txt
+        path: result-${{ matrix.java }}.txt
